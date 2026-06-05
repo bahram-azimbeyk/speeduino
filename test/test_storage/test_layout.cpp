@@ -86,7 +86,12 @@ static void test_no_entity_overlap(void) {
     uint8_t idxCurrBlock = 0U;
 
     for (uint8_t i = MIN_PAGE_NUM; i < MAX_PAGE_NUM; i++) {
-        idxCurrBlock = test_no_overlap_page(i, blocks, _countof(blocks), idxCurrBlock);
+        // The calibration page is not part of the page EEPROM layout: it is persisted
+        // via saveAllCalibrationTables() to the dedicated calibration region at the
+        // storage tail (above MAX_PAGE_ADDRESS), so it has no entity start address.
+        if (i != calibrationPage) {
+            idxCurrBlock = test_no_overlap_page(i, blocks, _countof(blocks), idxCurrBlock);
+        }
     }
 }
 
@@ -176,7 +181,10 @@ static void print_page_layout(uint8_t pageNum)
 static void print_eeprom_layout(void) {
     UnityPrint("Page, Index, Item, Type, Start Address, Length"); UNITY_PRINT_EOL();
     for (uint8_t page = MIN_PAGE_NUM; page < MAX_PAGE_NUM; page++) {
-        print_page_layout(page);
+        // The calibration page lives in the calibration region printed below, not the page layout
+        if (page != calibrationPage) {
+            print_page_layout(page);
+        }
     }
 
     #define GET_VARIABLE_NAME(Variable) (#Variable)

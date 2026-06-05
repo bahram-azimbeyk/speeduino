@@ -365,6 +365,21 @@ void savePage(uint8_t pageNum)
       writesRemaining = write_range((byte *)&configPage15, (byte *)&configPage15+sizeof(configPage15), EEPROM_CONFIG15_START, writesRemaining);
       break;
 
+    case calibrationPage:
+      /*---------------------------------------------------
+      | Sensor calibration tables - Page 16
+      | Persisted via the dedicated calibration region at the storage tail,
+      | NOT the page EEPROM layout (EEPROM format is unchanged).
+      | Note: this path intentionally bypasses the writesRemaining throttle -
+      | calibration burns are small (288 bytes, change-detected) and rare.
+      | The stored calibration CRCs ('k' command) are left untouched: they are
+      | CRCs of the original TS 't' payloads and cannot be derived from the
+      | 32-bin tables. TS may report a calibration checksum mismatch after a
+      | page-based restore until the Calibrate dialogs are re-run.
+      -----------------------------------------------------*/
+      saveAllCalibrationTables();
+      break;
+
     default:
       break;
   }

@@ -42,15 +42,20 @@ volatile uint32_t flexPulseWidth = 0U;
 
 static map_algorithm_t mapAlgorithmState;
 
-static uint16_t cltCalibration_bins[32];
-static uint8_t cltCalibration_values[32];
-table2D_u16_u8_32 cltCalibrationTable(&cltCalibration_bins, &cltCalibration_values);
-static uint16_t iatCalibration_bins[32];
-static uint8_t iatCalibration_values[32];
-table2D_u16_u8_32 iatCalibrationTable(&iatCalibration_bins, &iatCalibration_values);
-static uint16_t o2Calibration_bins[32];
-static uint8_t o2Calibration_values[32];
-table2D_u16_u8_32 o2CalibrationTable(&o2Calibration_bins, &o2Calibration_values); 
+//Sensor calibration data, exposed to TunerStudio as page 16 (see calibration_page_t).
+calibration_page_t calibrationData;
+table2D_u16_u8_32 cltCalibrationTable(&calibrationData.cltCalibration_bins, &calibrationData.cltCalibration_values);
+table2D_u16_u8_32 iatCalibrationTable(&calibrationData.iatCalibration_bins, &calibrationData.iatCalibration_values);
+table2D_u16_u8_32 o2CalibrationTable(&calibrationData.o2Calibration_bins, &calibrationData.o2Calibration_values);
+
+//The ini file page 16 layout depends on this exact size & member layout (no padding).
+static_assert(sizeof(calibration_page_t) == 288U, "calibration_page_t must be 288 bytes (TS page 16 layout)");
+static_assert(offsetof(calibration_page_t, cltCalibration_bins)   == 0U,   "Page 16 layout mismatch: cltCalibration_bins");
+static_assert(offsetof(calibration_page_t, cltCalibration_values) == 64U,  "Page 16 layout mismatch: cltCalibration_values");
+static_assert(offsetof(calibration_page_t, iatCalibration_bins)   == 96U,  "Page 16 layout mismatch: iatCalibration_bins");
+static_assert(offsetof(calibration_page_t, iatCalibration_values) == 160U, "Page 16 layout mismatch: iatCalibration_values");
+static_assert(offsetof(calibration_page_t, o2Calibration_bins)    == 192U, "Page 16 layout mismatch: o2Calibration_bins");
+static_assert(offsetof(calibration_page_t, o2Calibration_values)  == 256U, "Page 16 layout mismatch: o2Calibration_values");
 
 /**
  * @brief A specialist function to map a value in the range [0, 1023] (I.e. 10-bit) to a different range.

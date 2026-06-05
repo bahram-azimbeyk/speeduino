@@ -42,6 +42,9 @@ static void test_loadAllPages(void)
 {
     setStorageAPI(getOneByteStorageApi(8192, 8192, BUFFER_MARKER));
     loadAllPages();
+    // The calibration page (16) is not loaded by loadAllPages(): calibrations are loaded
+    // from their dedicated storage region, as per the boot sequence in init.cpp.
+    loadAllCalibrationTables();
     for (uint8_t page = MIN_PAGE_NUM; page<MAX_PAGE_NUM; ++page) {
         assert_page(page, BUFFER_MARKER);
     }

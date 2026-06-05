@@ -95,8 +95,29 @@ int16_t getMAPDelta(void);
 /** @brief Get the time in µS between the last 2 MAP readings */
 uint32_t getMAPDeltaTime(void);
 
+/** @brief Backing storage for the sensor calibration tables, laid out as TunerStudio page 16.
+ *
+ * Grouping the calibration arrays into a single config_page_t entity exposes them through
+ * the page system (read/write/burn), which means TunerStudio stores them in the tune (.msq)
+ * and restores them when a tune is loaded onto a new ECU (see issue #1265).
+ * The arrays are also written by the TS Tools->Calibrate dialogs via the 't' serial command;
+ * both paths share this storage. Persistence is via saveAllCalibrationTables() (storage tail
+ * region), NOT via the page EEPROM layout - the EEPROM format is unchanged.
+ *
+ * @warning The member order/offsets are the page 16 layout in the ini file. Do not reorder.
+ */
+struct calibration_page_t : public config_page_t {
+  uint16_t cltCalibration_bins[32];   ///< Page offset 0
+  uint8_t  cltCalibration_values[32]; ///< Page offset 64
+  uint16_t iatCalibration_bins[32];   ///< Page offset 96
+  uint8_t  iatCalibration_values[32]; ///< Page offset 160
+  uint16_t o2Calibration_bins[32];    ///< Page offset 192
+  uint8_t  o2Calibration_values[32];  ///< Page offset 256
+};
+
+extern calibration_page_t calibrationData;
 extern table2D_u16_u8_32 cltCalibrationTable;
 extern table2D_u16_u8_32 iatCalibrationTable;
-extern table2D_u16_u8_32 o2CalibrationTable; 
+extern table2D_u16_u8_32 o2CalibrationTable;
 
 #endif // SENSORS_H

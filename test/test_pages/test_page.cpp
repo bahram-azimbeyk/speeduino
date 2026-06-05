@@ -1,5 +1,6 @@
 #include <unity.h>
 #include "pages.h"
+#include "sensors.h"
 #include "../test_utils.h"
 
 static void assert_entity(const entity_t &entity, byte expected)
@@ -231,7 +232,7 @@ static uint16_t sumEntitySizes(uint8_t pageNum)
 static void test_sumEntity_matches_pageSize(void)
 {
     // Page sizes as defined in the .ini file
-    constexpr uint16_t ini_page_sizes[] = { 0, 128, 288, 288, 128, 288, 128, 240, 384, 192, 192, 288, 192, 128, 288, 256 };
+    constexpr uint16_t ini_page_sizes[] = { 0, 128, 288, 288, 128, 288, 128, 240, 384, 192, 192, 288, 192, 128, 288, 256, 288 };
 
     for (uint8_t pageNum=MIN_PAGE_NUM; pageNum<MAX_PAGE_NUM; ++pageNum)
     {
@@ -332,6 +333,41 @@ static void test_unique_entities(void)
     }
 }
 
+// The calibration page (16) maps onto the sensor calibration tables. Verify that page
+// offsets land in the expected struct members with little-endian byte order, since the
+// ini file page 16 layout (cltCalBins etc.) depends on this exact mapping.
+static void test_calibration_page_mapping(void)
+{
+    TEST_ASSERT_EQUAL(sizeof(calibrationData), getPageSize(calibrationPage));
+
+    // U16 axis bin: offsets 0 & 1 -> cltCalibration_bins[0], little-endian
+    TEST_ASSERT_TRUE(setPageValue(calibrationPage, 0U, 0x34));
+    TEST_ASSERT_TRUE(setPageValue(calibrationPage, 1U, 0x12));
+    TEST_ASSERT_EQUAL_HEX16(0x1234, calibrationData.cltCalibration_bins[0]);
+    TEST_ASSERT_EQUAL_HEX8(0x34, getPageValue(calibrationPage, 0U));
+    TEST_ASSERT_EQUAL_HEX8(0x12, getPageValue(calibrationPage, 1U));
+
+    // U08 value: offset 64 -> cltCalibration_values[0]
+    TEST_ASSERT_TRUE(setPageValue(calibrationPage, 64U, 0xA5));
+    TEST_ASSERT_EQUAL_HEX8(0xA5, calibrationData.cltCalibration_values[0]);
+
+    // IAT bins start at offset 96
+    TEST_ASSERT_TRUE(setPageValue(calibrationPage, 96U, 0x78));
+    TEST_ASSERT_TRUE(setPageValue(calibrationPage, 97U, 0x56));
+    TEST_ASSERT_EQUAL_HEX16(0x5678, calibrationData.iatCalibration_bins[0]);
+
+    // O2 bins start at offset 192, O2 values at offset 256
+    TEST_ASSERT_TRUE(setPageValue(calibrationPage, 192U, 0xBC));
+    TEST_ASSERT_TRUE(setPageValue(calibrationPage, 193U, 0x9A));
+    TEST_ASSERT_EQUAL_HEX16(0x9ABC, calibrationData.o2Calibration_bins[0]);
+    TEST_ASSERT_TRUE(setPageValue(calibrationPage, 256U, 0x42));
+    TEST_ASSERT_EQUAL_HEX8(0x42, calibrationData.o2Calibration_values[0]);
+
+    // Last byte of the page maps to the last O2 value
+    TEST_ASSERT_TRUE(setPageValue(calibrationPage, 287U, 0x7E));
+    TEST_ASSERT_EQUAL_HEX8(0x7E, calibrationData.o2Calibration_values[31]);
+}
+
 void testPage(void) {
     SET_UNITY_FILENAME() {
         RUN_TEST(test_getEntityValue_raw);
@@ -348,5 +384,6 @@ void testPage(void) {
         RUN_TEST(print_page_layout);
         RUN_TEST(test_sumEntity_matches_pageSize);
         RUN_TEST(test_unique_entities);
+        RUN_TEST(test_calibration_page_mapping);
     }
 }

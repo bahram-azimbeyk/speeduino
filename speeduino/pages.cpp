@@ -3,6 +3,7 @@
 #include "preprocessor.h"
 #include "table3d_visitor.h"
 #include "prog_mem_support.h"
+#include "sensors.h"
 
 // This minimizes RAM usage at no performance cost
 #pragma GCC optimize ("Os") 
@@ -351,6 +352,12 @@ static page_map_t getPageMap(uint8_t pageNumber)
     makeEntity(&boostTableLookupDuty),
     makeEntity(&configPage15, sizeof(configPage15)),
   };
+  //Sensor calibration tables (CLT/IAT/O2). Exposing them as a page means TS saves them
+  //in the tune (.msq), so they are restored when a tune is loaded onto a new ECU.
+  //Note: persisted via saveAllCalibrationTables() (storage tail), not the page EEPROM layout.
+  static constexpr entity_t calibrationPageMap[] PROGMEM = {
+    makeEntity(&calibrationData, sizeof(calibrationData)),
+  };
 
   static constexpr page_map_t pageMaps[MAX_PAGE_NUM] PROGMEM = {
     { pageZeroMap, _countof(pageZeroMap) },
@@ -369,6 +376,7 @@ static page_map_t getPageMap(uint8_t pageNumber)
     { progOutsPageMap, _countof(progOutsPageMap) },    
     { ign2PageMap, _countof(ign2PageMap) },
     { boostVvt2PageMap, _countof(boostVvt2PageMap) },
+    { calibrationPageMap, _countof(calibrationPageMap) },
   };
 
   if (pageNumber>=MAX_PAGE_NUM)
