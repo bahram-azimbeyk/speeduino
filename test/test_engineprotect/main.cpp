@@ -10,6 +10,8 @@
 extern bool checkOilPressureLimit(const statuses &current, const config6 &page6, const config10 &page10, uint32_t currMillis);
 extern table2D_u8_u8_4 oilPressureProtectTable;
 extern uint32_t oilProtEndTime;
+extern bool oilProtTimerStarted;
+extern bool afrProtTimerStarted;
 
 extern bool checkBoostLimit(const statuses &current, const config6 &page6);
 extern bool checkRpmLimit(const statuses &current, const config4 &page4, const config6 &page6, const config9 &page9);
@@ -68,6 +70,8 @@ extern uint16_t applyFlatShiftRevLimit(uint16_t curLimit, const statuses &curren
 static void resetInternalState(void)
 {
     oilProtEndTime = 0;
+    oilProtTimerStarted = false;
+    afrProtTimerStarted = false;
     checkAFRLimitActive = false;
     afrProtectedActivateTime = 0;
     softLimitTime = 0;
@@ -206,6 +210,34 @@ struct engineProtection_test_context_t
     }
 };
 
+static void test_protection_deadlines_wrap(void)
+{
+    const uint32_t starts[] = {UINT32_MAX - 49U, UINT32_MAX - 99U, 0U};
+    for (uint32_t start : starts)
+    {
+        engineProtection_test_context_t context;
+        context.setOilPressureActive();
+        context.page10.oilPressureProtTime = 1; // 100ms
+        TEST_ASSERT_FALSE(checkOilPressureLimit(context.current, context.page6, context.page10, start));
+        TEST_ASSERT_FALSE(checkOilPressureLimit(context.current, context.page6, context.page10, start + 99U));
+        TEST_ASSERT_TRUE(checkOilPressureLimit(context.current, context.page6, context.page10, start + 100U));
+        context.current.oilPressure = 255;
+        TEST_ASSERT_FALSE(checkOilPressureLimit(context.current, context.page6, context.page10, start + 101U));
+        TEST_ASSERT_FALSE(oilProtTimerStarted);
+
+        context.setAfrActive();
+        afrProtectedActivateTime = 0;
+        context.page9.afrProtectCutTime = 1;
+        TEST_ASSERT_FALSE(checkAFRLimit(context.current, context.page6, context.page9, start));
+        TEST_ASSERT_FALSE(checkAFRLimit(context.current, context.page6, context.page9, start + 99U));
+        TEST_ASSERT_TRUE(checkAFRLimit(context.current, context.page6, context.page9, start + 100U));
+        TEST_ASSERT_TRUE(checkAFRLimit(context.current, context.page6, context.page9, start + 101U));
+        context.current.TPS = 0;
+        TEST_ASSERT_FALSE(checkAFRLimit(context.current, context.page6, context.page9, start + 102U));
+        TEST_ASSERT_FALSE(afrProtTimerStarted);
+    }
+}
+
 static void test_checkOilPressureLimit_basic(void) {
     engineProtection_test_context_t context;
     
@@ -259,6 +291,8 @@ static void test_checkOilPressureLimit_activate_when_time_expires(void) {
     context.setOilPressureActive(); 
 
     oilProtEndTime = 0;
+    oilProtTimerStarted = false;
+    afrProtTimerStarted = false;
     TEST_ASSERT_TRUE(checkOilPressureLimit(context.current, context.page6, context.page10, millis()));
 
     oilProtEndTime = 10000;
@@ -275,6 +309,8 @@ static void test_checkOilPressureLimit_timer_and_activation(void)
     // Set a non-zero delay (2 -> 200ms)
     context.page10.oilPressureProtTime = 2;
     oilProtEndTime = 0;
+    oilProtTimerStarted = false;
+    afrProtTimerStarted = false;
 
     unsigned long now = 12345UL;
     // First call should arm the timer but not yet activate
@@ -309,6 +345,8 @@ static void test_checkOilPressureLimit_timer_resets_when_pressure_recovers(void)
     context.page10.oilPressureProtTime = 5;
     unsigned long now = 30000UL;
     oilProtEndTime = 0;
+    oilProtTimerStarted = false;
+    afrProtTimerStarted = false;
 
     // Arm the timer
     TEST_ASSERT_FALSE(checkOilPressureLimit(context.current, context.page6, context.page10, now));
@@ -1585,6 +1623,7 @@ static void test_RollingCut_masks_unused(void)
     SET_UNITY_FILENAME() {
 
     RUN_TEST_P(test_checkOilPressureLimit_basic);
+    RUN_TEST_P(test_protection_deadlines_wrap);
     RUN_TEST_P(test_checkOilPressureLimit_activate_when_time_expires);
     RUN_TEST_P(test_checkOilPressureLimit_timer_and_activation)
     RUN_TEST_P(test_checkOilPressureLimit_existing_engineProtect_forces_cut);
