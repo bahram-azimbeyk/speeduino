@@ -623,8 +623,24 @@ static void burnSinglePage(uint8_t page)
   }
 }
 
+// Minimum header size, including the command byte. Check before reading fields.
+static uint8_t minimumCommandLength(byte command)
+{
+  switch (command)
+  {
+    case 'b': case 'B': case 'd': case 'E': case 'k': return 3U;
+    case 'M': case 'p': case 'r': case 't': case 'w': return 7U;
+    default: return 1U;
+  }
+}
+
 void processSerialCommand(void)
 {
+  if ((serialPayloadLength == 0U) || (serialPayloadLength < minimumCommandLength(serialPayload[0])))
+  {
+    sendReturnCodeMsg(SERIAL_RC_RANGE_ERR);
+    return;
+  }
   switch (serialPayload[0])
   {
 
@@ -723,7 +739,9 @@ void processSerialCommand(void)
       //2 - offset
       //2 - Length
       //1 - 1st New value
-      if (updatePageValues(serialPayload[2], word(serialPayload[4], serialPayload[3]), &serialPayload[7], word(serialPayload[6], serialPayload[5])))
+      const uint16_t length = word(serialPayload[6], serialPayload[5]);
+      if ((length <= (serialPayloadLength - 7U)) &&
+          updatePageValues(serialPayload[2], word(serialPayload[4], serialPayload[3]), &serialPayload[7], length))
       {
         sendReturnCodeMsg(SERIAL_RC_OK);    
       }
@@ -995,6 +1013,7 @@ void processSerialCommand(void)
         { 
           if((SD_arg1 == SD_WRITE_DO_ARG1) && (SD_arg2 == SD_WRITE_DO_ARG2))
           {
+            if (serialPayloadLength < 8U) { sendReturnCodeMsg(SERIAL_RC_RANGE_ERR); break; }
             /*
             SD DO command. Single byte of data where the commands are:
             0 Reset
@@ -1014,6 +1033,7 @@ void processSerialCommand(void)
           }
           else if((SD_arg1 == SD_WRITE_DIR_ARG1) && (SD_arg2 == SD_WRITE_DIR_ARG2))
           {
+            if (serialPayloadLength < 9U) { sendReturnCodeMsg(SERIAL_RC_RANGE_ERR); break; }
             //Begin SD directory read. Value in payload represents the directory chunk to read
             //Directory chunks are each 16 files long
             SDcurrentDirChunk = word(serialPayload[7], serialPayload[8]);
@@ -1021,6 +1041,7 @@ void processSerialCommand(void)
           }
           else if((SD_arg1 == SD_WRITE_READ_SEC_ARG1) && (SD_arg2 == SD_WRITE_READ_SEC_ARG2))
           {
+            if (serialPayloadLength < 11U) { sendReturnCodeMsg(SERIAL_RC_RANGE_ERR); break; }
             //Read sector Init? Unsure what this is meant to do however it is sent at the beginning of a Card Format request and requires an OK response
             //Provided the sector being requested is x0 x0 x0 x0, we treat this as a SD Card format request
             if( (serialPayload[7] == 0) && (serialPayload[8] == 0) && (serialPayload[9] == 0) && (serialPayload[10] == 0) )
@@ -1036,6 +1057,7 @@ void processSerialCommand(void)
           }
           else if((SD_arg1 == SD_ERASEFILE_ARG1) && (SD_arg2 == SD_ERASEFILE_ARG2))
           {
+            if (serialPayloadLength < 11U) { sendReturnCodeMsg(SERIAL_RC_RANGE_ERR); break; }
             //Erase file command
             //We just need the 4 ASCII characters of the file name
             char log1 = serialPayload[7];
@@ -1074,6 +1096,7 @@ void processSerialCommand(void)
           }
           else if((SD_arg1 == SD_WRITE_COMP_ARG1) && (SD_arg2 == SD_WRITE_COMP_ARG2))
           {
+            if (serialPayloadLength < 15U) { sendReturnCodeMsg(SERIAL_RC_RANGE_ERR); break; }
             //Prepare to read a 2024 byte chunk of data from the SD card
             uint8_t sector1 = serialPayload[7];
             uint8_t sector2 = serialPayload[8];
@@ -1101,6 +1124,7 @@ void processSerialCommand(void)
           //Used for setting RTC settings
           if((SD_arg1 == SD_RTC_WRITE_ARG1) && (SD_arg2 == SD_RTC_WRITE_ARG2))
           {
+            if (serialPayloadLength < 15U) { sendReturnCodeMsg(SERIAL_RC_RANGE_ERR); break; }
             //Set the RTC date/time
             byte second = serialPayload[7];
             byte minute = serialPayload[8];
