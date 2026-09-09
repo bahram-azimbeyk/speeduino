@@ -541,7 +541,10 @@ void serialReceive(void)
   {
     if (serialBytesRxTx < serialPayloadLength )
     {
-      serialPayload[serialBytesRxTx] = (byte)primarySerial.read();
+      const byte received = (byte)primarySerial.read();
+      // Drain an oversized frame without writing outside the payload buffer.
+      // Keeping its declared length preserves framing across receive calls.
+      if (serialPayloadLength <= _countof(serialPayload)) { serialPayload[serialBytesRxTx] = received; }
       ++serialBytesRxTx;
     }
     else
@@ -551,7 +554,11 @@ void serialReceive(void)
 
       if (!isRxTimeout()) // CRC read can timeout also!
       {
-        if (incomingCrc == CRC32_serial.crc32(serialPayload, serialPayloadLength))
+        if ((serialPayloadLength == 0U) || (serialPayloadLength > _countof(serialPayload)))
+        {
+          sendReturnCodeMsg(SERIAL_RC_RANGE_ERR);
+        }
+        else if (incomingCrc == CRC32_serial.crc32(serialPayload, serialPayloadLength))
         {
           //CRC is correct. Process the command
           processSerialCommand();
