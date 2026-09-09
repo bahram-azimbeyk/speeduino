@@ -57,7 +57,7 @@ bool pinIsOutput(byte pin)
       || pinNumbers.coilPins.isPinUsed(pin);
   //Functions?
   if ((pin == pinNumbers.pinFuelPump)
-  || ((pin == pinNumbers.pinFan) && (configPage2.fanEnable == 1))
+  || ((pin == pinNumbers.pinFan) && ((configPage2.fanEnable == 1) || (configPage2.fanEnable == 2)))
   || ((pin == pinNumbers.pinVVT_1) && (configPage6.vvtEnabled > 0))
   || ((pin == pinNumbers.pinVVT_2) && (configPage10.wmiEnabled > 0))
   || ((pin == pinNumbers.pinVVT_2) && (configPage10.vvt2Enabled > 0))
