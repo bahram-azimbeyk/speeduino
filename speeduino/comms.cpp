@@ -1176,7 +1176,7 @@ void sendCompositeLog(void)
     //If the buffer is not yet full but TS has timed out, pad the rest of the buffer with 0s
     while(toothHistoryIndex < _countof(toothHistory))
     {
-      toothHistory[toothHistoryIndex] = toothHistory[toothHistoryIndex-1U]; //Composite logger needs a realistic time value to display correctly. Copy the last value
+      toothHistory[toothHistoryIndex] = toothHistoryIndex == 0U ? 0U : toothHistory[toothHistoryIndex-1U]; //Composite logger needs a realistic time value to display correctly. Copy the last value
       compositeLogHistory[toothHistoryIndex] = 0U;
       toothHistoryIndex++;
     }
