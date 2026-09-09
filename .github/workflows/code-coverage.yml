@@ -92,3 +92,8 @@ jobs:
       with:
         path: |
           .pio/build/${{ env.PIO_ENV }}/${{ env.FILE_ROOT }}.*
+    - name: Check native test results
+      if: ${{ always() && (steps.tests_8x8.outcome == 'failure' || steps.tests_other.outcome == 'failure') }}
+      run: |
+        echo "::error::Native tests failed. See the test steps above; coverage reporting was allowed to complete."
+        exit 1
