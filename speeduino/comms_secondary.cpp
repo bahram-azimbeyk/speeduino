@@ -43,8 +43,11 @@ static constexpr uint8_t CAN_FRAME_DATA_BYTES = 8U;
 // Leave incomplete replies buffered, including a partial two-byte failure reply.
 TESTABLE_INLINE_STATIC bool processSecondaryCanReply(Stream &port)
 {
-  if (port.available() < 2) { return false; }
-  if ((port.peek() != 0) && (port.available() < (CAN_FRAME_DATA_BYTES + 2))) { return false; }
+  // Evaluate readiness from one snapshot; later arrivals wait for the next call.
+  const int availableBytes = port.available();
+  if (availableBytes < 2) { return false; }
+  const bool successfulReply = port.peek() != 0;
+  if (successfulReply && (availableBytes < (CAN_FRAME_DATA_BYTES + 2))) { return false; }
   const uint8_t cmdSuccessful = port.read();      // 0 == fail, 1 == good
   const uint8_t destcaninchannel = port.read();   // the input channel that requested the data value
 
