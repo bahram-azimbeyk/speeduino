@@ -45,6 +45,9 @@ jobs:
       run: python -m unittest discover -s "${{ env.PR_FOLDER }}/.github/workflows/tests"
 
     - name: Build PR Envs
+      id: build_pr
+      # Preserve measurements and logs before failing the final build check.
+      continue-on-error: true
       run: |
         set -o pipefail
         source PIO/bin/activate
@@ -53,10 +56,13 @@ jobs:
     - name: Checkout Base Branch
       uses: actions/checkout@v4
       with:
-        ref: master
+        ref: ${{ github.event.pull_request.base.sha }}
         path: ${{ env.BASE_FOLDER }}
 
     - name: Build Base Envs
+      id: build_base
+      # Preserve measurements and logs before failing the final build check.
+      continue-on-error: true
       run: |
         set -o pipefail
         source PIO/bin/activate
@@ -73,11 +79,13 @@ jobs:
         fi
 
     - name: Upload build logs
-      if: ${{ env.ACT }}
+      if: ${{ always() }}
       uses: actions/upload-artifact@v4
       with:
+        name: memory-build-logs
         path: |
-            **/*.log
+          ${{ env.PR_LOG_FILE }}
+          ${{ env.BASE_LOG_FILE }}
 
       # This step is needed to pass the size data to the report job.
     - name: Upload sketches report to workflow artifact
@@ -87,3 +95,9 @@ jobs:
         path: |
           ${{ env.SIZE_REPORT_FILE }}
           ${{ env.PR_NUM_FILE }}
+
+    - name: Check build results
+      if: ${{ always() && (steps.build_pr.outcome == 'failure' || steps.build_base.outcome == 'failure') }}
+      run: |
+        echo "At least one firmware build failed; see memory-build-logs and the partial size report."
+        exit 1
