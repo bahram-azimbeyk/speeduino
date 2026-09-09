@@ -161,6 +161,11 @@ static void test_valid_first_calibration_chunk(void)
         TEST_ASSERT_EQUAL_UINT16(i * 32U, o2CalibrationTable.axis[i]);
     }
 }
+#else
+static void test_serial_receive_requires_native(void)
+{
+    TEST_IGNORE_MESSAGE("Packet buffers are host-only; firmware is built by the board matrix.");
+}
 #endif
 
 void runAllTests(void)
@@ -176,7 +181,7 @@ void runAllTests(void)
     RUN_TEST_P(test_calibration_bounds);
     RUN_TEST_P(test_valid_first_calibration_chunk);
 #else
-    TEST_IGNORE_MESSAGE("Packet buffers are host-only; firmware is built by the board matrix.");
+    RUN_TEST_P(test_serial_receive_requires_native);
 #endif
 }
 TEST_HARNESS(runAllTests)
