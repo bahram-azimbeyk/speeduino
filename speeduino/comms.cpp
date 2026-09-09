@@ -488,6 +488,25 @@ static void processTemperatureCalibrationTableUpdate(uint16_t calibrationLength,
 // ====================================== End Internal Functions =============================
 
 
+static void processReceivedFrame(uint32_t incomingCrc)
+{
+  if ((serialPayloadLength == 0U) || (serialPayloadLength > _countof(serialPayload)))
+  {
+    sendReturnCodeMsg(SERIAL_RC_RANGE_ERR);
+  }
+  else if (incomingCrc == CRC32_serial.crc32(serialPayload, serialPayloadLength))
+  {
+    //CRC is correct. Process the command
+    processSerialCommand();
+    currentStatus.allowLegacyComms = false; //Lock out legacy commands until next power cycle
+  }
+  else {
+    //CRC Error. Need to send an error message
+    sendReturnCodeMsg(SERIAL_RC_CRC_ERR);
+    flushRXbuffer();
+  }
+}
+
 /** Processes the incoming data on the serial buffer based on the command sent.
 Can be either data for a new command or a continuation of data for command that is already in progress:
 
@@ -554,21 +573,7 @@ void serialReceive(void)
 
       if (!isRxTimeout()) // CRC read can timeout also!
       {
-        if ((serialPayloadLength == 0U) || (serialPayloadLength > _countof(serialPayload)))
-        {
-          sendReturnCodeMsg(SERIAL_RC_RANGE_ERR);
-        }
-        else if (incomingCrc == CRC32_serial.crc32(serialPayload, serialPayloadLength))
-        {
-          //CRC is correct. Process the command
-          processSerialCommand();
-          currentStatus.allowLegacyComms = false; //Lock out legacy commands until next power cycle
-        }
-        else {
-          //CRC Error. Need to send an error message
-          sendReturnCodeMsg(SERIAL_RC_CRC_ERR);
-          flushRXbuffer();
-        }
+        processReceivedFrame(incomingCrc);
       }
       // else timeout - code below will kick in.
     }
@@ -633,6 +638,23 @@ static uint8_t minimumCommandLength(byte command)
     default: return 1U;
   }
 }
+
+#ifdef COMMS_SD
+static uint8_t minimumSdWriteLength(uint8_t command, uint16_t arg1, uint16_t arg2)
+{
+  if (command == SD_RTC_PAGE)
+  {
+    return ((arg1 == SD_RTC_WRITE_ARG1) && (arg2 == SD_RTC_WRITE_ARG2)) ? 15U : 7U;
+  }
+  if (command != SD_READWRITE_PAGE) { return 7U; }
+  if ((arg1 == SD_WRITE_DO_ARG1) && (arg2 == SD_WRITE_DO_ARG2)) { return 8U; }
+  if ((arg1 == SD_WRITE_DIR_ARG1) && (arg2 == SD_WRITE_DIR_ARG2)) { return 9U; }
+  if ((arg1 == SD_WRITE_READ_SEC_ARG1) && (arg2 == SD_WRITE_READ_SEC_ARG2)) { return 11U; }
+  if ((arg1 == SD_ERASEFILE_ARG1) && (arg2 == SD_ERASEFILE_ARG2)) { return 11U; }
+  if ((arg1 == SD_WRITE_COMP_ARG1) && (arg2 == SD_WRITE_COMP_ARG2)) { return 15U; }
+  return 7U;
+}
+#endif
 
 void processSerialCommand(void)
 {
@@ -1022,11 +1044,15 @@ void processSerialCommand(void)
       uint8_t cmd = serialPayload[2];
       uint16_t SD_arg1 = word(serialPayload[3], serialPayload[4]);
       uint16_t SD_arg2 = word(serialPayload[5], serialPayload[6]);
+      if (serialPayloadLength < minimumSdWriteLength(cmd, SD_arg1, SD_arg2))
+      {
+        sendReturnCodeMsg(SERIAL_RC_RANGE_ERR);
+        break;
+      }
       if(cmd == SD_READWRITE_PAGE)
         { 
           if((SD_arg1 == SD_WRITE_DO_ARG1) && (SD_arg2 == SD_WRITE_DO_ARG2))
           {
-            if (serialPayloadLength < 8U) { sendReturnCodeMsg(SERIAL_RC_RANGE_ERR); break; }
             /*
             SD DO command. Single byte of data where the commands are:
             0 Reset
@@ -1046,7 +1072,6 @@ void processSerialCommand(void)
           }
           else if((SD_arg1 == SD_WRITE_DIR_ARG1) && (SD_arg2 == SD_WRITE_DIR_ARG2))
           {
-            if (serialPayloadLength < 9U) { sendReturnCodeMsg(SERIAL_RC_RANGE_ERR); break; }
             //Begin SD directory read. Value in payload represents the directory chunk to read
             //Directory chunks are each 16 files long
             SDcurrentDirChunk = word(serialPayload[7], serialPayload[8]);
@@ -1054,7 +1079,6 @@ void processSerialCommand(void)
           }
           else if((SD_arg1 == SD_WRITE_READ_SEC_ARG1) && (SD_arg2 == SD_WRITE_READ_SEC_ARG2))
           {
-            if (serialPayloadLength < 11U) { sendReturnCodeMsg(SERIAL_RC_RANGE_ERR); break; }
             //Read sector Init? Unsure what this is meant to do however it is sent at the beginning of a Card Format request and requires an OK response
             //Provided the sector being requested is x0 x0 x0 x0, we treat this as a SD Card format request
             if( (serialPayload[7] == 0) && (serialPayload[8] == 0) && (serialPayload[9] == 0) && (serialPayload[10] == 0) )
@@ -1070,7 +1094,6 @@ void processSerialCommand(void)
           }
           else if((SD_arg1 == SD_ERASEFILE_ARG1) && (SD_arg2 == SD_ERASEFILE_ARG2))
           {
-            if (serialPayloadLength < 11U) { sendReturnCodeMsg(SERIAL_RC_RANGE_ERR); break; }
             //Erase file command
             //We just need the 4 ASCII characters of the file name
             char log1 = serialPayload[7];
@@ -1109,7 +1132,6 @@ void processSerialCommand(void)
           }
           else if((SD_arg1 == SD_WRITE_COMP_ARG1) && (SD_arg2 == SD_WRITE_COMP_ARG2))
           {
-            if (serialPayloadLength < 15U) { sendReturnCodeMsg(SERIAL_RC_RANGE_ERR); break; }
             //Prepare to read a 2024 byte chunk of data from the SD card
             uint8_t sector1 = serialPayload[7];
             uint8_t sector2 = serialPayload[8];
@@ -1137,7 +1159,6 @@ void processSerialCommand(void)
           //Used for setting RTC settings
           if((SD_arg1 == SD_RTC_WRITE_ARG1) && (SD_arg2 == SD_RTC_WRITE_ARG2))
           {
-            if (serialPayloadLength < 15U) { sendReturnCodeMsg(SERIAL_RC_RANGE_ERR); break; }
             //Set the RTC date/time
             byte second = serialPayload[7];
             byte minute = serialPayload[8];
