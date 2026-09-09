@@ -964,8 +964,21 @@ void processSerialCommand(void)
       uint16_t offset = word(serialPayload[3], serialPayload[4]);
       uint16_t calibrationLength = word(serialPayload[5], serialPayload[6]); // Should be 256
 
+      // Validate source bytes before either calibration path can alter tables/storage.
+      if (calibrationLength > (serialPayloadLength - 7U))
+      {
+        sendReturnCodeMsg(SERIAL_RC_RANGE_ERR);
+        break;
+      }
       if(cmd == SensorCalibrationTable::O2Sensor)
       {
+        // TS sends a 1024-byte calibration domain in chunks. Widen before adding
+        // because uint16_t arithmetic wraps on AVR.
+        if ((calibrationLength == 0U) || (addWithoutOverflow(offset, calibrationLength) > 1024U))
+        {
+          sendReturnCodeMsg(SERIAL_RC_RANGE_ERR);
+          break;
+        }
         loadO2CalibrationChunk(offset, calibrationLength);
         sendReturnCodeMsg(SERIAL_RC_OK);
         primarySerial.flush(); //This is safe because engine is assumed to not be running during calibration
