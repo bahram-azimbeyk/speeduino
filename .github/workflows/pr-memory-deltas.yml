@@ -41,8 +41,12 @@ jobs:
       with:
         path: ${{ env.PR_FOLDER }}
 
+    - name: Test memory report parsing
+      run: python -m unittest discover -s "${{ env.PR_FOLDER }}/.github/workflows/tests"
+
     - name: Build PR Envs
       run: |
+        set -o pipefail
         source PIO/bin/activate
         platformio run -d ${{ env.PR_FOLDER }} ${{ steps.build_command_line.outputs.CMD_PIO_ENVS }} 2>&1 | tee ${{ env.PR_LOG_FILE }}
     
@@ -54,6 +58,7 @@ jobs:
 
     - name: Build Base Envs
       run: |
+        set -o pipefail
         source PIO/bin/activate
         platformio run -d ${{ env.BASE_FOLDER }} ${{ steps.build_command_line.outputs.CMD_PIO_ENVS }} 2>&1 | tee ${{ env.BASE_LOG_FILE }}
 
