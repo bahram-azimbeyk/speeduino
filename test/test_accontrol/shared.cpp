@@ -38,13 +38,15 @@ constexpr uint8_t TEST_ACFAN_PIN = 14;
 
 test_context setup_ac_tune(void)
 {
-    test_context context;
+    test_context context = {};
     context.pins.pinAirConComp = TEST_ACCOMP_PIN;
     context.pins.pinAirConRequest = TEST_ACREQUEST_PIN;
     context.pins.pinAirConFan = TEST_ACFAN_PIN;
 
     context.page15.airConEnable = true;
     context.page15.airConCompPol = false;
+    context.page15.airConReqPol = false;
+    context.page15.airConFanPol = false;
     context.page15.airConFanEnabled = true;
     context.page15.airConAfterStartDelay = 17;
     context.page15.airConClTempCut = TEMPERATURE.toRaw(100);

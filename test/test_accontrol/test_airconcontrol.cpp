@@ -228,15 +228,28 @@ static void test_ac_request_pin_inverted(void)
     TEST_ASSERT_TRUE(context.current.acStatus.turningOn);
 }
 
-static void test_fanon_when_acon(void)
+static void assert_fanon_when_acon(bool inverted)
 {
     auto context = setup_ac_tune();
+    context.page15.airConFanPol = inverted;
     context.initialise();
+    TEST_ASSERT_FALSE(context.current.acStatus.fanOn);
+    TEST_ASSERT_EQUAL(inverted, airConState.fanPin._pin.isPinHigh());
 
     setup_acon_status(context);
     context.control();
     TEST_ASSERT_TRUE(context.current.acStatus.fanOn);
-    TEST_ASSERT_TRUE(airConState.fanPin._pin.isPinHigh());
+    TEST_ASSERT_EQUAL(!inverted, airConState.fanPin._pin.isPinHigh());
+}
+
+static void test_fanon_when_acon(void)
+{
+    assert_fanon_when_acon(false);
+}
+
+static void test_fanon_when_acon_inverted(void)
+{
+    assert_fanon_when_acon(true);
 }
 
 void assert_ac_on(const test_context &context)
@@ -328,6 +341,7 @@ void testAcControl(void)
     RUN_TEST_P(test_ac_request_pin);
     RUN_TEST_P(test_ac_request_pin_inverted);
     RUN_TEST_P(test_fanon_when_acon);
+    RUN_TEST_P(test_fanon_when_acon_inverted);
     RUN_TEST_P(test_start_delay);
     RUN_TEST_P(test_airConOn);
     RUN_TEST_P(test_airConOn_inversepolarity);
