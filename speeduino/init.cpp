@@ -380,11 +380,11 @@ void setPinMapping(byte boardID)
   }
   if( (configPage10.fuelPressureEnable > 0)  && (!pinIsOutput(pinNumbers.pinFuelPressure)) )
   {
-    pinMode(pinNumbers.pinFuelPressure, INPUT);
+    pinMode(pinNumbers.pinFuelPressure, analogInputMode);
   }
   if( (configPage10.oilPressureEnable > 0) && (!pinIsOutput(pinNumbers.pinOilPressure)) )
   {
-    pinMode(pinNumbers.pinOilPressure, INPUT);
+    pinMode(pinNumbers.pinOilPressure, analogInputMode);
   }
 #ifdef SD_LOGGING
   if( (configPage13.onboard_log_trigger_Epin > 0) && (!pinIsOutput(pinNumbers.pinSDEnable)) )
