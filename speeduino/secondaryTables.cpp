@@ -27,19 +27,10 @@ static_assert(FUEL2_CONDITION_RPM == SPARK2_CONDITION_RPM
 
 static inline bool isSecondarySwitchActive(uint8_t variable, uint16_t threshold, const statuses &current)
 {
-  switch (variable)
-  {
-    case FUEL2_CONDITION_RPM:
-      return current.RPM > threshold;
-    case FUEL2_CONDITION_MAP:
-      return current.MAP > threshold;
-    case FUEL2_CONDITION_TPS:
-      return current.TPS > threshold;
-    case FUEL2_CONDITION_ETH:
-      return current.ethanolPct > threshold;
-    default:
-      return false;
-  }
+  return ((variable == FUEL2_CONDITION_RPM) && (current.RPM > threshold))
+      || ((variable == FUEL2_CONDITION_MAP) && (current.MAP > threshold))
+      || ((variable == FUEL2_CONDITION_TPS) && (current.TPS > threshold))
+      || ((variable == FUEL2_CONDITION_ETH) && (current.ethanolPct > threshold));
 }
 
 static inline bool fuelModeCondSwitchActive(const config10 &page10, const statuses &current) {
