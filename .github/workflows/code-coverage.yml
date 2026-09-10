@@ -39,6 +39,13 @@ jobs:
         source PIO/bin/activate
         pip install platformio
        
+    - name: Test native timer lifetime
+      run: |
+        g++ -std=c++14 -O1 -g -DNATIVE_BOARD -pthread -I lib/ArduinoFake \
+          .github/workflows/tests/test_software_timer.cpp lib/ArduinoFake/SoftwareTimer.cpp \
+          -o /tmp/test-software-timer
+        timeout 30s /tmp/test-software-timer
+
     - name: Run Code Coverage Tests (8x8)
       id: tests_8x8
       # We want the coverage to reflect the status of the
