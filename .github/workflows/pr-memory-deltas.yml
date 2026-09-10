@@ -30,6 +30,12 @@ jobs:
         source PIO/bin/activate
         pip install platformio
 
+    # Use the same compatible STM32 toolchain for the PR and an unpinned base.
+    - name: Install compatible STM32 platform
+      run: |
+        source PIO/bin/activate
+        platformio pkg install --global --platform "platformio/ststm32@19.5.0"
+
     - name: Build command line
       if: ${{ env.PIO_ENVS }}
       id: build_command_line
