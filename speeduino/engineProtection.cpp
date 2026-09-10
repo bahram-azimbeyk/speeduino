@@ -1,5 +1,6 @@
 #include "globals.h"
 #include "engineProtection.h"
+#include "elapsed_time.h"
 #include "maths.h"
 #include "units.h"
 #include "unit_testing.h"
@@ -9,12 +10,21 @@
 #include "preprocessor.h"
 
 TESTABLE_STATIC uint32_t oilProtEndTime;
+TESTABLE_STATIC bool oilProtTimerStarted = false;
 TESTABLE_CONSTEXPR table2D_u8_u8_4 oilPressureProtectTable(&configPage10.oilPressureProtRPM, &configPage10.oilPressureProtMins);
 TESTABLE_CONSTEXPR table2D_u8_u8_6 coolantProtectTable(&configPage9.coolantProtTemp, &configPage9.coolantProtRPM);
 
 /* AFR protection state moved to file scope so unit tests can control/reset it */
 TESTABLE_STATIC bool checkAFRLimitActive = false;
 TESTABLE_STATIC unsigned long afrProtectedActivateTime = 0;
+TESTABLE_STATIC bool afrProtTimerStarted = false;
+
+// Protection delays are much shorter than half the uint32_t counter period.
+// A future deadline has a large modular distance; an expired one a small distance.
+static inline bool protectionDeadlineReached(uint32_t now, uint32_t deadline)
+{
+  return timeElapsed(now, deadline) < UINT32_C(0x80000000);
+}
 
 TESTABLE_INLINE_STATIC bool checkOilPressureLimit(const statuses &current, const config6 &page6, const config10 &page10, uint32_t currMillis)
 {
@@ -28,13 +38,18 @@ TESTABLE_INLINE_STATIC bool checkOilPressureLimit(const statuses &current, const
     if(current.oilPressure < oilLimit)
     {
       //Check if this is the first time we've been below the limit
-      if(oilProtEndTime == 0U) { oilProtEndTime = currMillis + TIME_TEN_MILLIS.toUser(page10.oilPressureProtTime); }
+      if ((oilProtEndTime == 0U) && !oilProtTimerStarted)
+      {
+        oilProtEndTime = currMillis + TIME_TEN_MILLIS.toUser(page10.oilPressureProtTime);
+        oilProtTimerStarted = true;
+      }
       /* Check if countdown has reached its target, if so then instruct to cut */
-      engineProtectOil = (currMillis >= oilProtEndTime) || (current.engineProtect.oil);
+      engineProtectOil = protectionDeadlineReached(currMillis, oilProtEndTime) || (current.engineProtect.oil);
     }
     else 
     { 
       oilProtEndTime = 0; //Reset the timer
+      oilProtTimerStarted = false;
     }
   }
 
@@ -106,13 +121,14 @@ TESTABLE_INLINE_STATIC bool checkAFRLimit(const statuses &current, const config6
     if (isAfrLimitCondtionActive(current, page9))
     {
       // All conditions fulfilled - start counter for 'protection delay'
-      if(afrProtectedActivateTime==0U) 
+      if ((afrProtectedActivateTime == 0U) && !afrProtTimerStarted)
       {
         afrProtectedActivateTime = currMillis + TIME_TEN_MILLIS.toUser(page9.afrProtectCutTime);
+        afrProtTimerStarted = true;
       }
 
       // Check if countdown has reached its target, if so then instruct to cut
-      checkAFRLimitActive = currMillis >= afrProtectedActivateTime;
+      checkAFRLimitActive = checkAFRLimitActive || protectionDeadlineReached(currMillis, afrProtectedActivateTime);
     } 
     else 
     {
@@ -128,6 +144,7 @@ TESTABLE_INLINE_STATIC bool checkAFRLimit(const statuses &current, const config6
     {
       checkAFRLimitActive = false;
       afrProtectedActivateTime = 0U;
+      afrProtTimerStarted = false;
     }
   }
   else
