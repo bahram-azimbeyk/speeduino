@@ -219,6 +219,27 @@ static void test_initialiseProgrammableIO_clears_conflicting_pin(void)
     TEST_ASSERT_EQUAL_UINT8(0, context.page13.outputPin[3]);
 }
 
+static void test_initialiseProgrammableIO_fan_modes(void)
+{
+    const uint8_t oldFanPin = pinNumbers.pinFan;
+    const uint8_t oldFanMode = configPage2.fanEnable;
+    pinNumbers.pinFan = 11;
+    configPage2.fanEnable = 0;
+    TEST_ASSERT_FALSE(pinIsUsed(pinNumbers.pinFan));
+
+    for (uint8_t mode = 0; mode <= 2; ++mode)
+    {
+        programmableIOTestContext_t context;
+        configPage2.fanEnable = mode;
+        context.page13.outputPin[0] = pinNumbers.pinFan;
+        initialiseProgrammableIO(context.page13);
+        TEST_ASSERT_EQUAL(mode == 0, state.channels[0].isPinValid());
+        TEST_ASSERT_EQUAL_UINT8(mode == 0 ? pinNumbers.pinFan : 0, context.page13.outputPin[0]);
+    }
+    pinNumbers.pinFan = oldFanPin;
+    configPage2.fanEnable = oldFanMode;
+}
+
 static void test_checkProgrammableIO_disabled_pin(void)
 {
     programmableIOTestContext_t context;
@@ -860,6 +881,7 @@ void testProgrammableIOControl(void)
         RUN_TEST_P(test_initialiseProgrammableIO_physical_pins);
         RUN_TEST_P(test_initialiseProgrammableIO_used_physical_pin);
         RUN_TEST_P(test_initialiseProgrammableIO_clears_conflicting_pin);
+        RUN_TEST_P(test_initialiseProgrammableIO_fan_modes);
         RUN_TEST_P(test_checkProgrammableIO_disabled_pin);
         RUN_TEST_P(test_checkProgrammableIO_skips_invalid_pins);
         RUN_TEST_P(test_checkProgrammableIO_all_cascade_rules);
