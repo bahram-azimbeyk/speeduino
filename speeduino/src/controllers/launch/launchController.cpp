@@ -7,8 +7,7 @@ static void updateClutchState(statuses &current, uint8_t launchPin, const config
   // Only read the shared clutch input when a function using it is enabled.
   if (page6.flatSEnable || page6.launchEnabled)
   {
-    if (page6.launchHiLo > 0) { current.clutchTrigger = digitalRead(launchPin); }
-    else { current.clutchTrigger = !digitalRead(launchPin); }
+    current.clutchTrigger = (page6.launchHiLo == digitalRead(launchPin));
 
     current.clutchTriggerActive = current.clutchTrigger; // TunerStudio indication
   }
@@ -62,9 +61,6 @@ void checkLaunchAndFlatShift(statuses &current, uint8_t launchPin, const config2
         && (current.clutchEngagedRPM >= RPM_COARSE.toUser(page6.flatSArm)))
   {
     const uint16_t flatRpmLimit = getHardCutRpmLimit(current.clutchEngagedRPM, page2, page15);
-    if (current.RPM > flatRpmLimit)
-    {
-      current.flatShiftingHard = true;
-    }
+    current.flatShiftingHard = (current.RPM > flatRpmLimit);
   }
 }
