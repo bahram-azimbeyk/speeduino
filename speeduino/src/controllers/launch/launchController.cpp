@@ -63,4 +63,8 @@ void checkLaunchAndFlatShift(statuses &current, uint8_t launchPin, const config2
     const uint16_t flatRpmLimit = getHardCutRpmLimit(current.clutchEngagedRPM, page2, page15);
     current.flatShiftingHard = (current.RPM > flatRpmLimit);
   }
+  else
+  {
+    // Neither function is armed; retain the cleared hard-cut flags.
+  }
 }
