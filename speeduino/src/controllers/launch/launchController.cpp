@@ -36,6 +36,17 @@ static uint16_t getHardCutRpmLimit(uint16_t baseRpm, const config2 &page2, const
   return baseRpm;
 }
 
+static bool withinLaunchSpeedLimit(const statuses &current, const config2 &page2, const config10 &page10)
+{
+  return (page2.vssMode == VSS_MODE_OFF) || (current.vss < page10.lnchCtrlVss);
+}
+
+static bool aboveLaunchRpmLimit(const statuses &current, const config2 &page2, const config6 &page6, const config15 &page15)
+{
+  const uint16_t launchRpmLimit = getHardCutRpmLimit(RPM_COARSE.toUser(page6.lnchHardLim), page2, page15);
+  return current.RPM > launchRpmLimit;
+}
+
 void checkLaunchAndFlatShift(statuses &current, uint8_t launchPin, const config2 &page2, const config6 &page6, const config10 &page10, const config15 &page15)
 {
   updateClutchState(current, launchPin, page6);
@@ -47,14 +58,11 @@ void checkLaunchAndFlatShift(statuses &current, uint8_t launchPin, const config2
   if (isLaunchArmed(current, page6, page10))
   {
     // A configured vehicle speed limit applies only to launch control.
-    if ((page2.vssMode == VSS_MODE_OFF) || (current.vss < page10.lnchCtrlVss))
+    if (withinLaunchSpeedLimit(current, page2, page10)
+        && aboveLaunchRpmLimit(current, page2, page6, page15))
     {
-      const uint16_t launchRpmLimit = getHardCutRpmLimit(RPM_COARSE.toUser(page6.lnchHardLim), page2, page15);
-      if (current.RPM > launchRpmLimit)
-      {
-        current.launchingHard = true;
-        current.hardLaunchActive = true;
-      }
+      current.launchingHard = true;
+      current.hardLaunchActive = true;
     }
   }
   else if (page6.flatSEnable && current.clutchTrigger
