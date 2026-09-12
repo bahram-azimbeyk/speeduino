@@ -47,7 +47,7 @@ void checkLaunchAndFlatShift(statuses &current, uint8_t launchPin, const config2
   if (isLaunchArmed(current, page6, page10))
   {
     // A configured vehicle speed limit applies only to launch control.
-    if ((page2.vssMode == 0) || (current.vss < page10.lnchCtrlVss))
+    if ((page2.vssMode == VSS_MODE_OFF) || (current.vss < page10.lnchCtrlVss))
     {
       const uint16_t launchRpmLimit = getHardCutRpmLimit(RPM_COARSE.toUser(page6.lnchHardLim), page2, page15);
       if (current.RPM > launchRpmLimit)
