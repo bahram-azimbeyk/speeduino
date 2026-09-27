@@ -1,3 +1,4 @@
+#include "../../../injector_bench.h"
 
 /** \file
  * Header file for the TunerStudio command handler
@@ -190,6 +191,10 @@ TESTABLE_STATIC uint16_t calcPulsesPerKm(const statuses &current, const config2 
 
 bool handleTsCommand(uint16_t command, statuses &current, config2 &page2)
 {
+#ifdef INJECTOR_BENCH_TEST
+  if(command==TS_CMD_TEST_DSBL) {injectorBenchStop();return true;}
+  if(injectorBenchOwnsOutputs() || command==TS_CMD_TEST_ENBL || (command>=513 && command<=792)) return false;
+#endif
   if (commandRequiresStoppedEngine(command) && current.RPM != 0)
   {
     return false;

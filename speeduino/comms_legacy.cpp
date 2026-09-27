@@ -646,7 +646,11 @@ void legacySerialHandler(byte cmd, Stream &targetPort, SerialStatus &targetStatu
       break;
 
     case 'Q': // send code version
+#ifdef INJECTOR_BENCH_TEST
+      targetPort.print(F("speeduino 202504-levinbench8"));
+#else
       targetPort.print(F("speeduino 202504-dev"));
+#endif
       break;
 
     case 'r': //New format for the optimised OutputChannels

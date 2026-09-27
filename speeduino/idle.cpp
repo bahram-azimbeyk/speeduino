@@ -1,3 +1,4 @@
+#include "bench_output_pin.h"
 /*
 Speeduino - Simple engine management for the Arduino Mega 2560 platform
 Copyright (C) Josh Stewart
@@ -52,8 +53,11 @@ static int32_t FeedForwardTerm;
 static uint32_t idle_pwm_target_value;
 static int32_t idle_cl_target_rpm;
 
-static fastOutputPin_t idle_pin;
-static fastOutputPin_t idle2_pin;
+#ifdef INJECTOR_BENCH_TEST
+static BenchOutputPin<fastOutputPin_t> idle_pin, idle2_pin;
+#else
+static fastOutputPin_t idle_pin, idle2_pin;
+#endif
 
 constexpr table2D_u8_u8_10 iacPWMTable(&configPage6.iacBins, &configPage6.iacOLPWMVal);
 constexpr table2D_u8_u8_10 iacStepTable(&configPage6.iacBins, &configPage6.iacOLStepVal);
@@ -837,3 +841,11 @@ void idleInterrupt(void)
     idle_pwm_state = true;
   }
 }
+#ifdef INJECTOR_BENCH_TEST
+void idleBenchRestorePosition(bool known,uint16_t position) {
+  idleStepper.stepperStatus=SOFF;
+  idleStepper.curIdleStep=known ? position : 0;
+  idleStepper.targetIdleStep=idleStepper.curIdleStep;
+  completedHomeSteps=known ? uint16_t(configPage6.iacStepHome)*3U : 0U;
+}
+#endif

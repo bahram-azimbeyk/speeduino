@@ -9,3 +9,7 @@ void disableIdle(void);
 void idleInterrupt(void);
 
 #endif
+
+#ifdef INJECTOR_BENCH_TEST
+void idleBenchRestorePosition(bool known,uint16_t position);
+#endif

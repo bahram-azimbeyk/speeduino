@@ -1,3 +1,4 @@
+#include "injector_bench.h"
 #include "globals.h"
 #include "logger.h"
 #include "decoders.h"
@@ -120,10 +121,14 @@ byte buildEngineStatus(const statuses &current)
 
 static byte buildTestOutput(const statuses &current)
 {
+#ifdef INJECTOR_BENCH_TEST
+  (void)current; return injectorBenchTelemetry();
+#else
   bool bits[] = {
     current.isTestModeActive,
   };
   return setStatusBits(0, bits);
+#endif
 }
 
 byte buildSdCardStatus(const statuses &current)
