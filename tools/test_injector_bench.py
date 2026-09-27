@@ -10,9 +10,9 @@ with tempfile.TemporaryDirectory(prefix='levin-bench-tests-') as temp:
     source=(root/'speeduino/injector_bench.cpp').read_text()
     source=re.sub(r'^#include .*\n','',source,flags=re.M)
     header='\n'.join('#include "'+str(root/f).replace('\\','/')+'"' for f in [
-        'test/bench_host/stubs.h','speeduino/injector_bench.h','speeduino/injector_bench_logic.h','speeduino/idle_bench_logic.h','speeduino/bench_output_pin.h'])+'\n'
+        'tools/tests/bench_host/stubs.h','speeduino/injector_bench.h','speeduino/injector_bench_logic.h','speeduino/idle_bench_logic.h','speeduino/bench_output_pin.h'])+'\n'
     macros=''
-    (d/'test.cpp').write_text(header+source+macros+(root/'test/bench_host/cases.cpp').read_text())
+    (d/'test.cpp').write_text(header+source+macros+(root/'tools/tests/bench_host/cases.cpp').read_text())
     exe=d/'bench-tests.exe'
     subprocess.run([compiler,'-std=c++11','-Wall','-Wextra','-Werror','-O2',str(d/'test.cpp'),'-o',str(exe)],check=True)
     subprocess.run([str(exe)],check=True)

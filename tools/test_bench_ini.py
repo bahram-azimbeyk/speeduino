@@ -83,7 +83,7 @@ print('PASS: All dropdowns, explicit Enable/Disable, grouped pump, gated idle te
 
 # Verify the existing official Levin mapping used by this opt-in target.
 import json
-mapping=json.loads((root/'test/bench_host/levin_mapping.json').read_text())
+mapping=json.loads((root/'tools/tests/bench_host/levin_mapping.json').read_text())
 source=(root/'speeduino/src/pins/pinMapping.cpp').read_text()
 body=source.split('static pinNumbers_t getLevinMapping(void)')[1].split('return pins;')[0]
 for name,pin in mapping.items():
