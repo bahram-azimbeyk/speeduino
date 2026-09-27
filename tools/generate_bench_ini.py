@@ -155,5 +155,6 @@ s=s.replace('[GaugeConfigurations]','''[GaugeConfigurations]
 ''',1)
 s=re.sub(r'^\s*testenabled\s*=.*$', '  testenabled = { benchEnabled }',s,flags=re.M)
 s=re.sub(r'^\s*testactive\s*=.*$', '  testactive = { benchRunning }',s,flags=re.M)
+s='\n'.join(line.rstrip() for line in s.splitlines())+'\n'
 (root/'reference/levin-bench.ini').write_text(s,encoding='utf-8')
 print('Generated reference/levin-bench.ini (bench8)')
